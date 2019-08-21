@@ -1,4 +1,4 @@
-FROM tensorflow/tensorflow:1.12.0-devel
+FROM tensorflow/tensorflow:1.12.0-devel as base
 
 RUN pip install pytest==4.6.4 contextlib2==0.5.5 lxml==4.3.4
 
@@ -30,20 +30,21 @@ RUN cd /tmp && \
     pip install dist/pycocotools-2.0.tar.gz
 
 
-ADD . /app
+ADD research /app
 WORKDIR /app
 
-RUN cd research && \
-    protoc object_detection/protos/*.proto --python_out=. && \
+RUN protoc object_detection/protos/*.proto --python_out=. && \
     cd slim && \
     python setup.py sdist && \
     pip install dist/slim-0.1.tar.gz
 
 # Do not use --ignore pytest flag: it will make tests crash. Instead, we remove unwanted files
-RUN cd research && \
-    py.test object_detection/dataset_tools/create_pascal_tf_record_test.py && \
+RUN py.test object_detection/dataset_tools/create_pascal_tf_record_test.py && \
     rm object_detection/dataset_tools/create_pascal_tf_record_test.py && \
     rm object_detection/builders/dataset_builder_test.py && \
     rm object_detection/inference/detection_inference_test.py && \
-    rm object_detection/models/ssd_resnet_v1_fpn_feature_extractor_test.py && \
-    py.test object_detection/
+    rm object_detection/models/ssd_resnet_v1_fpn_feature_extractor_test.py
+
+FROM base
+
+RUN py.test object_detection
