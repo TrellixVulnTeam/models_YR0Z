@@ -28,7 +28,8 @@ class CocoDetectionEvaluator(object_detection_evaluation.DetectionEvaluator):
   def __init__(self,
                categories,
                include_metrics_per_category=False,
-               all_metrics_per_category=False):
+               all_metrics_per_category=False,
+               evaluator=coco_tools.COCOEvalWrapper):
     """Constructor.
 
     Args:
@@ -52,6 +53,7 @@ class CocoDetectionEvaluator(object_detection_evaluation.DetectionEvaluator):
     self._metrics = None
     self._include_metrics_per_category = include_metrics_per_category
     self._all_metrics_per_category = all_metrics_per_category
+    self._evaluator = evaluator
 
   def clear(self):
     """Clears the state to prepare for a fresh evaluation."""
@@ -205,13 +207,13 @@ class CocoDetectionEvaluator(object_detection_evaluation.DetectionEvaluator):
     coco_wrapped_groundtruth = coco_tools.COCOWrapper(groundtruth_dict)
     coco_wrapped_detections = coco_wrapped_groundtruth.LoadAnnotations(
         self._detection_boxes_list)
-    box_evaluator = coco_tools.COCOEvalWrapper(
+    box_evaluator = self._evaluator(
         coco_wrapped_groundtruth, coco_wrapped_detections, agnostic_mode=False)
     box_metrics, box_per_category_ap = box_evaluator.ComputeMetrics(
         include_metrics_per_category=self._include_metrics_per_category,
         all_metrics_per_category=self._all_metrics_per_category)
     box_metrics.update(box_per_category_ap)
-    box_metrics = {'DetectionBoxes_'+ key: value
+    box_metrics = {'DetectionBoxes_' + key: value
                    for key, value in iter(box_metrics.items())}
     return box_metrics
 
@@ -337,18 +339,7 @@ class CocoDetectionEvaluator(object_detection_evaluation.DetectionEvaluator):
                                        detection_classes,
                                        num_det_boxes_per_image,
                                        is_annotated], [])
-    metric_names = ['DetectionBoxes_Precision/mAP',
-                    'DetectionBoxes_Precision/mAP@.50IOU',
-                    'DetectionBoxes_Precision/mAP@.75IOU',
-                    'DetectionBoxes_Precision/mAP (large)',
-                    'DetectionBoxes_Precision/mAP (medium)',
-                    'DetectionBoxes_Precision/mAP (small)',
-                    'DetectionBoxes_Recall/AR@1',
-                    'DetectionBoxes_Recall/AR@10',
-                    'DetectionBoxes_Recall/AR@100',
-                    'DetectionBoxes_Recall/AR@100 (large)',
-                    'DetectionBoxes_Recall/AR@100 (medium)',
-                    'DetectionBoxes_Recall/AR@100 (small)']
+    metric_names = ['DetectionBoxes_' + key for key in self._evaluator().params.summary_config.keys()]
     if self._include_metrics_per_category:
       for category_dict in self._categories:
         metric_names.append('DetectionBoxes_PerformanceByCategory/mAP/' +
@@ -387,7 +378,8 @@ def _check_mask_type_and_value(array_name, masks):
 class CocoMaskEvaluator(object_detection_evaluation.DetectionEvaluator):
   """Class to evaluate COCO detection metrics."""
 
-  def __init__(self, categories, include_metrics_per_category=False):
+  def __init__(self, categories, include_metrics_per_category=False,
+               evaluator=coco_tools.COCOEvalWrapper):
     """Constructor.
 
     Args:
@@ -404,6 +396,7 @@ class CocoMaskEvaluator(object_detection_evaluation.DetectionEvaluator):
     self._category_id_set = set([cat['id'] for cat in self._categories])
     self._annotation_id = 1
     self._include_metrics_per_category = include_metrics_per_category
+    self._evaluator = evaluator
 
   def clear(self):
     """Clears the state to prepare for a fresh evaluation."""
@@ -575,7 +568,7 @@ class CocoMaskEvaluator(object_detection_evaluation.DetectionEvaluator):
         groundtruth_dict, detection_type='segmentation')
     coco_wrapped_detection_masks = coco_wrapped_groundtruth.LoadAnnotations(
         self._detection_masks_list)
-    mask_evaluator = coco_tools.COCOEvalWrapper(
+    mask_evaluator = self._evaluator(
         coco_wrapped_groundtruth, coco_wrapped_detection_masks,
         agnostic_mode=False, iou_type='segm')
     mask_metrics, mask_per_category_ap = mask_evaluator.ComputeMetrics(
@@ -699,18 +692,7 @@ class CocoMaskEvaluator(object_detection_evaluation.DetectionEvaluator):
         detection_masks, num_det_boxes_per_image
     ], [])
 
-    metric_names = ['DetectionMasks_Precision/mAP',
-                    'DetectionMasks_Precision/mAP@.50IOU',
-                    'DetectionMasks_Precision/mAP@.75IOU',
-                    'DetectionMasks_Precision/mAP (large)',
-                    'DetectionMasks_Precision/mAP (medium)',
-                    'DetectionMasks_Precision/mAP (small)',
-                    'DetectionMasks_Recall/AR@1',
-                    'DetectionMasks_Recall/AR@10',
-                    'DetectionMasks_Recall/AR@100',
-                    'DetectionMasks_Recall/AR@100 (large)',
-                    'DetectionMasks_Recall/AR@100 (medium)',
-                    'DetectionMasks_Recall/AR@100 (small)']
+    metric_names = ['DetectionMasks_' + key for key in self._evaluator().params.summary_config.keys()]
     if self._include_metrics_per_category:
       for category_dict in self._categories:
         metric_names.append('DetectionMasks_PerformanceByCategory/mAP/' +
