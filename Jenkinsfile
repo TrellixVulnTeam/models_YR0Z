@@ -4,6 +4,8 @@ node {
         if (params.CLEAR_WORKSPACE) {
             deleteDir()
         }
+        echo 'BUILD_TAG:'
+        echo ${BUILD_TAG}
         checkout([$class: 'GitSCM',
                   branches: scm.branches,
                   extensions: scm.extensions + [[$class: 'SubmoduleOption', recursiveSubmodules: true]],
